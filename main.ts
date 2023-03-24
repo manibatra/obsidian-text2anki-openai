@@ -2,6 +2,7 @@ import { App, Plugin, PluginSettingTab, Setting, Notice } from "obsidian";
 import { Configuration, OpenAIApi } from "openai";
 interface FlashcardGeneratorSettings {
 	modelName: string;
+	prompt: string;
 	apiKey: string;
 	deckName: string;
 }
@@ -10,6 +11,7 @@ const DEFAULT_SETTINGS: FlashcardGeneratorSettings = {
 	apiKey: "",
 	deckName: "Generated Flashcards",
 	modelName: "gpt-4",
+	prompt: "You are an AnkiAssistant that will create flashcards to be used in the Anki App. You should use HTML to format parts of the output according to Anki format. Provide code examples and anything that assists in recall. Separate the 'Front' and 'Back' of each flashcard with ||. Only use it once in the flashcard. Every flashcard should be separated by '======='",
 };
 
 export default class FlashcardGeneratorPlugin extends Plugin {
@@ -24,7 +26,7 @@ export default class FlashcardGeneratorPlugin extends Plugin {
 
 		this.addCommand({
 			id: "generate-flashcards",
-			name: "Generate flashcards from bullet points in current file",
+			name: "Generate flashcards from current file",
 			callback: () => this.generateFlashcardsFromCurrentFile(),
 		});
 
@@ -52,10 +54,7 @@ export default class FlashcardGeneratorPlugin extends Plugin {
 		await this.saveData(this.settings);
 	}
 
-	async generateFlashcardsFromCurrentFile(
-		prompt = "",
-		deckName: string = this.settings.deckName
-	) {
+	async generateFlashcardsFromCurrentFile() {
 		if (!this.settings.apiKey) {
 			new Notice(
 				"OpenAI API key is required for Flashcard Generator plugin to work"
@@ -72,7 +71,21 @@ export default class FlashcardGeneratorPlugin extends Plugin {
 			return;
 		}
 
+		// Extract the deck name from the note text
+		const deckNameRegex = /^Deck:\s*(.+?)$/m;
+		const match = text.match(deckNameRegex);
+		const deckName = match ? match[1] : this.settings.deckName;
+
+		// Remove the "Deck: ..." line from the text
+		const cleanedText = text.replace(deckNameRegex, "").trim();
+
 		try {
+			// Display a waiting sign
+			const waitingNotice = new Notice(
+				"Generating flashcards, please wait...",
+				120000
+			);
+
 			const response = await this.openai.createChatCompletion({
 				messages: [
 					{
@@ -82,20 +95,21 @@ export default class FlashcardGeneratorPlugin extends Plugin {
 					},
 					{
 						role: "user",
-						content:
-							prompt ||
-							"You are an AnkiAssistant that will create flashcards to be used in the Anki App. You should use HTML to format parts of the output according to Anki format. Provide code examples and anything that assists in recall. Separate the 'Front' and 'Back' of each flashcard with ||. Only use it once in the flashcard. Every flashcard should be separated by '======='",
+						content: this.settings.prompt,
 					},
 					{
 						role: "user",
 						content:
-							"Create flashcards from the following text:" + text,
+							"Create flashcards from the following text:" +
+							cleanedText,
 					},
 				],
 				model: this.settings.modelName,
 				temperature: 0.2,
 				presence_penalty: -0.2,
 			});
+
+			waitingNotice.hide();
 
 			const generatedFlashcards =
 				response.data.choices[0].message.content;
@@ -104,7 +118,7 @@ export default class FlashcardGeneratorPlugin extends Plugin {
 
 			if (!deckId) {
 				new Notice(
-					`Could not find deck with name '${this.settings.deckName}'. Creating it`
+					`Could not find deck with name '${deckName}'. Creating it`
 				);
 				await this.createDeck(deckName);
 				deckId = await this.getDeckId(deckName);
@@ -118,10 +132,13 @@ export default class FlashcardGeneratorPlugin extends Plugin {
 					front = front.replace("Front:", "").trim();
 					back = back.replace("Back:", "").trim();
 
-					await this.addCardToDeck(deckId, {
-						front,
-						back,
-					});
+					await this.addCardToDeck(
+						{
+							front,
+							back,
+						},
+						deckName
+					);
 				}
 			}
 
@@ -158,13 +175,16 @@ export default class FlashcardGeneratorPlugin extends Plugin {
 		}
 	}
 
-	async addCardToDeck(deckId: number, note: { front: string; back: string }) {
+	async addCardToDeck(
+		note: { front: string; back: string },
+		deckName: string
+	) {
 		const { front, back } = note;
 
 		try {
 			await this.invokeAnkiConnect("addNote", {
 				note: {
-					deckName: this.settings.deckName,
+					deckName: deckName,
 					modelName: "Basic",
 					fields: {
 						Front: front,
@@ -255,10 +275,26 @@ class FlashcardGeneratorSettingTab extends PluginSettingTab {
 			.addDropdown((dropdown) =>
 				dropdown
 					.addOption("gpt-4", "gpt-4")
-					.addOption("davinci", "davinci")
+					.addOption("gpt-3.5-turbo", "gpt-3.5-turbo")
+					.addOption("text-davinci-003", "text-davinci-003")
 					.setValue(this.plugin.settings.modelName)
 					.onChange(async (value) => {
 						this.plugin.settings.modelName = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("OpenAI GPT Model Prompt")
+			.setDesc("User Prompt to use for the OpenAI GPT model")
+			.addText((text) =>
+				text
+					.setPlaceholder(
+						"You are an AnkiAssistant that will create flashcards to be used in the Anki App. You should use HTML to format parts of the output according to Anki format. Provide code examples and anything that assists in recall. Separate the 'Front' and 'Back' of each flashcard with ||. Only use it once in the flashcard. Every flashcard should be separated by '======='"
+					)
+					.setValue(this.plugin.settings.prompt)
+					.onChange(async (value) => {
+						this.plugin.settings.prompt = value;
 						await this.plugin.saveSettings();
 					})
 			);
