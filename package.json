@@ -1,7 +1,7 @@
 {
-	"name": "obsidian-sample-plugin",
+	"name": "obsidian-text2anki-openai",
 	"version": "1.0.0",
-	"description": "This is a sample plugin for Obsidian (https://obsidian.md)",
+	"description": "This is an obsidian plugin that uses OpenAI to generate flashcards from text and add them to Anki.",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
