@@ -1,4 +1,4 @@
-# Obsidian Text2Anki using OpenAI
+# Text2Anki using OpenAI
 
 ## Flashcard Generator Plugin for Obsidian
 
