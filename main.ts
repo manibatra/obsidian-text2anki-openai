@@ -1,4 +1,11 @@
-import { App, Plugin, PluginSettingTab, Setting, Notice } from "obsidian";
+import {
+	App,
+	Plugin,
+	PluginSettingTab,
+	Setting,
+	Notice,
+	requestUrl,
+} from "obsidian";
 import { Configuration, OpenAIApi } from "openai";
 interface FlashcardGeneratorSettings {
 	modelName: string;
@@ -203,7 +210,8 @@ export default class FlashcardGeneratorPlugin extends Plugin {
 	}
 
 	async invokeAnkiConnect(action: string, params?: any) {
-		const response = await fetch("http://localhost:8765", {
+		const response = await requestUrl({
+			url: "http://localhost:8765",
 			method: "POST",
 			body: JSON.stringify({
 				action,
