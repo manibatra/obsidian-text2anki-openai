@@ -62,7 +62,7 @@ export default class FlashcardGeneratorPlugin extends Plugin {
 		}
 
 		const noteFile = this.app.workspace.getActiveFile(); // Currently Open Note
-		if (!noteFile?.name) return; // Nothing Open
+		if (noteFile === null) return; // Nothing Open
 
 		const text = await this.app.vault.read(noteFile);
 
