@@ -38,10 +38,6 @@ export default class FlashcardGeneratorPlugin extends Plugin {
 		});
 
 		this.addSettingTab(new FlashcardGeneratorSettingTab(this.app, this));
-
-		// this.registerDomEvent(document, "click", (event: MouseEvent) => {
-		// 	console.log("click", event);
-		// });
 	}
 
 	async loadSettings() {
