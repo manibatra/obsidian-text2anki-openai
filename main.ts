@@ -159,10 +159,8 @@ export default class FlashcardGeneratorPlugin extends Plugin {
 	async getDeckId(name: string) {
 		try {
 			const decks = await this.invokeAnkiConnect("deckNamesAndIds");
-			for (const deck of decks) {
-				if (deck.name === name) {
-					return deck.id;
-				}
+			if (decks[name]) {
+				return decks[name];
 			}
 		} catch (error) {
 			console.error(error);
