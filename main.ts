@@ -205,7 +205,7 @@ export default class FlashcardGeneratorPlugin extends Plugin {
 			});
 		} catch (error) {
 			console.error(error);
-			new Notice("An error occurred while adding card to deck");
+			new Notice(error);
 		}
 	}
 
@@ -220,10 +220,12 @@ export default class FlashcardGeneratorPlugin extends Plugin {
 			}),
 		});
 
-		const parsedResponse = await response.json();
+		const parsedResponse = await response.json;
 
 		if (parsedResponse.hasOwnProperty("error")) {
-			throw new Error(parsedResponse.error);
+			if (parsedResponse.error !== null) {
+				throw new Error(parsedResponse.error);
+			}
 		}
 
 		return parsedResponse.result;
